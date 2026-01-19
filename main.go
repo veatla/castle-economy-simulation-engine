@@ -3,22 +3,25 @@ package main
 import (
 	"example/hello/src/agents"
 	"example/hello/src/world"
-	"fmt"
 	"strings"
 	"time"
 )
 
 func main() {
 	ticker := time.NewTicker(time.Millisecond * 50)
-	var world = world.NewWorld()
-	for range 5 {
+	var world = world.NewWorld(5, 5)
+	// start websocket server to broadcast simulation state
+	go StartWebSocketServer()
+	for range 1 {
 		world.Agents = append(world.Agents, agents.CreateSimpleAgent(world.Width, world.Height))
 
 	}
+	tick := 0
 	for range ticker.C {
+		tick++
 		world.Tick(0.05)
-		fmt.Print("\033[H\033[2J") // очистка экрана
-		fmt.Print(render(&world))
+		// broadcast a lightweight snapshot to connected websocket clients
+		BroadcastWorld(tick, &world)
 	}
 }
 func render(world *world.World) string {

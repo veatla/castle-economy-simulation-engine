@@ -29,10 +29,10 @@ func (w *World) Tick(dt float32) {
 	}
 }
 
-func NewWorld() World {
+func NewWorld(Width float32, Height float32) World {
 	return World{
-		Width:  100,
-		Height: 100,
+		Width:  Width,
+		Height: Height,
 		// Agents: NewWorld().Agents,
 	}
 }
