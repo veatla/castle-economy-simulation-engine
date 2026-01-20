@@ -1,16 +1,19 @@
 package position
 
-import "math/rand/v2"
+import (
+	"math"
+	"math/rand/v2"
+)
 
 type Position struct {
-	X, Z          float32
-	Width, Height float32
+	X, Z          float64
+	Width, Height int
 }
 
-func GetRandomPositionFromWorld(worldWidth float32, worldHeight float32, width float32, height float32) Position {
+func GetRandomPositionFromWorld(worldWidth int, worldHeight int, width int, height int) Position {
 	return Position{
-		X:      rand.Float32() * worldWidth,
-		Z:      rand.Float32() * worldHeight,
+		X:      math.Round(rand.Float64() * float64(worldWidth)),
+		Z:      math.Round(rand.Float64() * float64(worldHeight)),
 		Width:  width,
 		Height: height,
 	}

@@ -8,6 +8,7 @@ import (
 
 	"example/hello/src/world"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -78,10 +79,10 @@ func StartWebSocketServer() {
 }
 
 type agentSnapshot struct {
-	ID   int     `json:"id"`
-	X    float32 `json:"x"`
-	Z    float32 `json:"z"`
-	Type string  `json:"type"`
+	ID   uuid.UUID `json:"id"`
+	X    float64   `json:"x"`
+	Z    float64   `json:"z"`
+	Type string    `json:"type"`
 }
 
 // BroadcastMessage is the shape sent to clients
