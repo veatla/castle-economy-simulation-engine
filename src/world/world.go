@@ -2,37 +2,35 @@ package world
 
 import (
 	"example/hello/src/agents"
+	"example/hello/src/position"
 	"slices"
 
 	"github.com/google/uuid"
 )
 
 type WorldID string
-type Cell struct {
-	X float64
-	Z float64
-}
+
 type World struct {
 	Width  int
 	Height int
 	Agents []agents.Agent
-	Grid   map[Cell][]uuid.UUID
+	Grid   map[position.SolidCell][]uuid.UUID
 }
 
 func (w *World) Tick(dt float64) {
 	for i := range w.Agents {
 		agent := &w.Agents[i]
 
-		var cell = Cell{
-			X: agent.X,
-			Z: agent.Z,
+		var cell = position.SolidCell{
+			X: int(agent.X),
+			Z: int(agent.Z),
 		}
 		agent.X = agent.X + agent.VX*dt
 		agent.Z = agent.X + agent.VZ*dt
 
-		var newCell = Cell{
-			X: agent.X,
-			Z: agent.Z,
+		var newCell = position.SolidCell{
+			X: int(agent.X),
+			Z: int(agent.Z),
 		}
 
 		if newCell != cell {
@@ -49,8 +47,6 @@ func (w *World) Tick(dt float64) {
 		if agent.Z < 0 || agent.Z > float64(w.Width) {
 			agent.VZ = -agent.VZ
 		}
-
-		// fmt.Printf("Agent #%v on X: %f Z: %f \n", agent.ID, agent.X, agent.Z)
 	}
 }
 
