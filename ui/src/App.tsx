@@ -43,8 +43,9 @@ function App() {
         data.updated.forEach((u) => {
           if (u.type !== "agent") return;
           let g = spritesRef.current.get(u.id);
-          const screenX = (u.x / 100) * W;
-          const screenY = (u.z / 100) * H;
+          const screenX = (u.x / 5) * W;
+          const screenY = (u.z / 5) * H;
+
           if (!g) {
             g = new PIXI.Graphics();
             g.beginFill(0xffcc00);

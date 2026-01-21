@@ -2,9 +2,7 @@ package world
 
 import (
 	"example/hello/src/agents"
-	"example/hello/src/position"
-
-	"github.com/google/uuid"
+	spatialhash "example/hello/src/spatial-hash"
 )
 
 type WorldID string
@@ -13,12 +11,15 @@ type World struct {
 	Width  int
 	Height int
 	Agents []agents.Agent
-	Grid   map[position.SolidCell][]uuid.UUID
+	Grid   spatialhash.SpatialHash
 }
 
 func (w *World) Tick(dt float64) {
+	w.Grid.Clear()
 	for i := range w.Agents {
-		w.Agents[i].MoveAgent(w.Grid, dt, w.Width, w.Height)
+		agent := w.Agents[i]
+		agent.Tick()
+		w.Grid.Insert(agent.ID, float32(agent.X), float32(agent.Z))
 	}
 }
 
