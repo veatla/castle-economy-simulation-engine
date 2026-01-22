@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -27,9 +26,10 @@ type Wandering struct {
 var lastID = 0
 
 func CreateSimpleAgent(seed int64, worldWidth, worldHeight int) Agent {
-	id := lastID + 1
+	lastID += 1
+	id := lastID
 
-	r := rand.New(rand.NewSource(seed + int64(id)))
+	r := rand.New(rand.NewSource(seed + int64(id)*9973))
 	angle := r.Float32() * 2 * math.Pi
 	agent := Agent{
 		ID:          id,
@@ -52,10 +52,8 @@ func (agent *Agent) Tick(dt time.Duration, worldWidth, worldHeight int) {
 	if int(agent.X) == int(agent.Wandering.X) && int(agent.Z) == int(agent.Wandering.Z) {
 		agent.Wandering.wait -= dt
 	} else {
-
 		agent.MoveTorwardsWanderingTarget()
 	}
-	fmt.Printf("%v %v  %v %v \n", agent.X, agent.Wandering.X, agent.Z, agent.Wandering.Z)
 	if agent.Wandering.wait <= 0 {
 		agent.Wandering = agent.SetWanderingTarget(worldWidth, worldHeight)
 	}

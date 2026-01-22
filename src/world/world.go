@@ -3,6 +3,7 @@ package world
 import (
 	"example/hello/src/agents"
 	spatialhash "example/hello/src/spatial-hash"
+	"sync"
 	"time"
 )
 
@@ -15,16 +16,6 @@ type World struct {
 	Grid   spatialhash.SpatialHash
 }
 
-func (w *World) Tick(dt time.Duration) {
-	w.Grid.Clear()
-	for i := range w.Agents {
-		agent := &w.Agents[i]
-		agent.Tick(dt, w.Width, w.Height)
-
-		w.ApplyBoundaries(agent)
-		w.Grid.Insert(agent.ID, float32(agent.X), float32(agent.Z))
-	}
-}
 func (w *World) ApplyBoundaries(a *agents.Agent) {
 	if a.X < 0 {
 		a.X = 0
@@ -36,34 +27,43 @@ func (w *World) ApplyBoundaries(a *agents.Agent) {
 	}
 }
 
-// func (w *World) Tick(dt float64) {
+// func (w *World) Tick(dt time.Duration) {
 // 	w.Grid.Clear()
-// 	n := len(w.Agents)
-// 	if n == 0 {
-// 		return
-// 	}
+// 	for i := range w.Agents {
+// 		agent := &w.Agents[i]
+// 		agent.Tick(dt, w.Width, w.Height)
 
-// 	results := make([]agents.Agent, n)
-// 	var wg sync.WaitGroup
-// 	wg.Add(n)
-
-// 	for i := 0; i < n; i++ {
-// 		i := i
-// 		go func() {
-// 			defer wg.Done()
-// 			agent := w.Agents[i]
-// 			agent.Tick()
-// 			results[i] = agent
-// 		}()
-// 	}
-
-// 	wg.Wait()
-
-// 	for i := 0; i < n; i++ {
-// 		a := results[i]
-// 		w.Grid.Insert(a.ID, float32(a.X), float32(a.Z))
+// 		w.ApplyBoundaries(agent)
+// 		w.Grid.Insert(agent.ID, float32(agent.X), float32(agent.Z))
 // 	}
 // }
+
+func (w *World) Tick(dt time.Duration) {
+	w.Grid.Clear()
+	n := len(w.Agents)
+	if n == 0 {
+		return
+	}
+
+	results := make([]agents.Agent, n)
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := range n {
+		go func(i int) {
+			defer wg.Done()
+			agent := &w.Agents[i]
+			agent.Tick(dt, w.Width, w.Height)
+			results[i] = *agent
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i := 0; i < n; i++ {
+		a := results[i]
+		w.Grid.Insert(a.ID, float32(a.X), float32(a.Z))
+	}
+}
 
 func NewWorld(Width int, Height int) World {
 	return World{

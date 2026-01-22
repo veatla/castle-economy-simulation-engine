@@ -36,15 +36,14 @@ function App() {
         const app = appRef.current;
         if (!app) return;
 
-        // Simple coordinate mapping: assume world 0..100 maps to canvas size
         const W = app.renderer.width;
         const H = app.renderer.height;
 
         data.updated.forEach((u) => {
           if (u.type !== "agent") return;
           let g = spritesRef.current.get(u.id);
-          const screenX = (u.x / 5) * W;
-          const screenY = (u.z / 5) * H;
+          const screenX = (u.x / 100) * W;
+          const screenY = (u.z / 100) * H;
 
           if (!g) {
             g = new PIXI.Graphics();
@@ -62,6 +61,8 @@ function App() {
             g.y += (screenY - g.y) * 0.6;
           }
         });
+
+        console.log(`Agents list ${spritesRef.current.size}`);
       } catch (e) {
         // ignore
       }
@@ -71,7 +72,7 @@ function App() {
 
   return (
     <div style={{ display: "flex", gap: 12 }}>
-      <div style={{ width: 720, height: 480 }} ref={stageRef} />
+      <div style={{ width: 500, height: 500 }} ref={stageRef} />
       <div style={{ width: 220 }}>
         <div style={{ marginBottom: 8 }}>
           <strong>Tick:</strong> {tick ?? "-"}
