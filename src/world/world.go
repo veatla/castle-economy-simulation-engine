@@ -34,16 +34,37 @@ func (w *World) ApplyBoundaries(a *agents.Agent) {
 		a.X = float64(w.Width)
 		a.VX = -a.VX
 	}
-
-	if a.Z < 0 {
-		a.Z = 0
-		a.VZ = -a.VZ
-	}
-	if a.Z > float64(w.Height) {
-		a.Z = float64(w.Height)
-		a.VZ = -a.VZ
-	}
 }
+
+// func (w *World) Tick(dt float64) {
+// 	w.Grid.Clear()
+// 	n := len(w.Agents)
+// 	if n == 0 {
+// 		return
+// 	}
+
+// 	results := make([]agents.Agent, n)
+// 	var wg sync.WaitGroup
+// 	wg.Add(n)
+
+// 	for i := 0; i < n; i++ {
+// 		i := i
+// 		go func() {
+// 			defer wg.Done()
+// 			agent := w.Agents[i]
+// 			agent.Tick()
+// 			results[i] = agent
+// 		}()
+// 	}
+
+// 	wg.Wait()
+
+// 	for i := 0; i < n; i++ {
+// 		a := results[i]
+// 		w.Grid.Insert(a.ID, float32(a.X), float32(a.Z))
+// 	}
+// }
+
 func NewWorld(Width int, Height int) World {
 	return World{
 		Width:  Width,
