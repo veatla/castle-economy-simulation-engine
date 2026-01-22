@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
-import "./App.css";
 
 type AgentUpdate = { id: number; x: number; z: number; type: string };
 
@@ -42,8 +41,8 @@ function App() {
         data.updated.forEach((u) => {
           if (u.type !== "agent") return;
           let g = spritesRef.current.get(u.id);
-          const screenX = (u.x / 100) * W;
-          const screenY = (u.z / 100) * H;
+          const screenX = (u.x / 5) * W;
+          const screenY = (u.z / 5) * H;
 
           if (!g) {
             g = new PIXI.Graphics();

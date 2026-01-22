@@ -8,6 +8,7 @@ import (
 
 	"example/hello/src/world"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -71,17 +72,17 @@ func StartWebSocketServer() {
 		}
 	})
 
-	log.Println("WebSocket server listening on :8080/ws")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	log.Println("WebSocket server listening on 127.0.0.1::8080/ws")
+	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
 type agentSnapshot struct {
-	ID   int     `json:"id"`
-	X    float64 `json:"x"`
-	Z    float64 `json:"z"`
-	Type string  `json:"type"`
+	ID   uuid.UUID `json:"id"`
+	X    float64   `json:"x"`
+	Z    float64   `json:"z"`
+	Type string    `json:"type"`
 }
 
 // BroadcastMessage is the shape sent to clients

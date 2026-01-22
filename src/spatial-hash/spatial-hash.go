@@ -1,14 +1,16 @@
 package spatialhash
 
+import "github.com/google/uuid"
+
 type Cell struct {
-	agents []int
+	agents []uuid.UUID
 }
 type SpatialHash struct {
 	CellSize float32
 	Cells    map[int64]*Cell
 }
 
-func hashCell(x, z int32) int64 {
+func HashCell(x, z int32) int64 {
 	return int64(x)<<32 | int64(z)&0xffffffff
 }
 
@@ -22,9 +24,9 @@ func (s *SpatialHash) Clear() {
 
 }
 
-func (s *SpatialHash) Insert(agentID int, x, z float32) {
+func (s *SpatialHash) Insert(agentID uuid.UUID, x, z float32) {
 	cx, cz := s.cellFor(x, z)
-	key := hashCell(cx, cz)
+	key := HashCell(cx, cz)
 
 	cell, ok := s.Cells[key]
 	if !ok {
@@ -35,14 +37,14 @@ func (s *SpatialHash) Insert(agentID int, x, z float32) {
 	cell.agents = append(cell.agents, agentID)
 }
 
-func (s *SpatialHash) Nearby(x, z float32) []int {
+func (s *SpatialHash) Nearby(x, z float32) []uuid.UUID {
 	cx, cz := s.cellFor(x, z)
 
-	var result []int
+	var result []uuid.UUID
 
 	for dx := -1; dx <= 1; dx++ {
 		for dz := -1; dz <= 1; dz++ {
-			key := hashCell(cx+int32(dx), cz+int32(dz))
+			key := HashCell(cx+int32(dx), cz+int32(dz))
 			if cell := s.Cells[key]; cell != nil {
 				result = append(result, cell.agents...)
 			}

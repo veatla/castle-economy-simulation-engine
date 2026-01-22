@@ -1,15 +1,18 @@
 package agents
 
 import (
+	"encoding/binary"
 	"math"
 	"math/rand"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Agent struct {
 	X             float64
 	Z             float64
-	ID            int
+	ID            uuid.UUID
 	VX, VZ        float64
 	Width, Height float64
 	changeDirIn   int
@@ -25,11 +28,14 @@ type Wandering struct {
 
 var lastID = 0
 
+func uuidToInt64(u uuid.UUID) int64 {
+	return int64(binary.BigEndian.Uint64(u[8:16]))
+}
 func CreateSimpleAgent(seed int64, worldWidth, worldHeight int) Agent {
 	lastID += 1
-	id := lastID
+	id := uuid.New()
 
-	r := rand.New(rand.NewSource(seed + int64(id)*9973))
+	r := rand.New(rand.NewSource(seed + uuidToInt64(id)))
 	angle := r.Float32() * 2 * math.Pi
 	agent := Agent{
 		ID:          id,
@@ -68,7 +74,7 @@ func (agent *Agent) SetWanderingTarget(worldWidth, worldHeight int) Wandering {
 	return Wandering{
 		X:    clamp(agent.X+dx, 0, float64(worldWidth)),
 		Z:    clamp(agent.Z+dz, 0, float64(worldHeight)),
-		wait: 5000 * time.Millisecond,
+		wait: 1000 * time.Millisecond,
 	}
 }
 func (agent *Agent) MoveTorwardsWanderingTarget() {
