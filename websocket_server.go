@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"sync"
 
@@ -79,10 +80,11 @@ func StartWebSocketServer() {
 }
 
 type agentSnapshot struct {
-	ID   uuid.UUID `json:"id"`
-	X    float64   `json:"x"`
-	Z    float64   `json:"z"`
-	Type string    `json:"type"`
+	ID       uuid.UUID `json:"id"`
+	X        float64   `json:"x"`
+	Z        float64   `json:"z"`
+	Rotation float64   `json:"rotation"`
+	Type     string    `json:"type"`
 }
 
 // BroadcastMessage is the shape sent to clients
@@ -110,7 +112,13 @@ func BroadcastWorld(tick int, updated []agents.Agent) {
 		chunk := updated[start:end]
 		snap := make([]agentSnapshot, 0, len(chunk))
 		for _, a := range chunk {
-			snap = append(snap, agentSnapshot{ID: a.ID, X: a.X, Z: a.Z, Type: "agent"})
+			snap = append(snap, agentSnapshot{
+				ID:       a.ID,
+				X:        a.X,
+				Z:        a.Z,
+				Type:     "agent",
+				Rotation: math.Atan2(a.VZ, a.VX) + math.Pi/2,
+			})
 		}
 		msg := BroadcastMessage{Tick: tick, Updated: snap}
 		hub.broadcast(msg)
