@@ -10,8 +10,8 @@ import (
 type WorldID string
 
 type World struct {
-	Width  int
-	Height int
+	Width  float64
+	Height float64
 	Agents []agents.Agent
 	Grid   spatialhash.SpatialHash
 }
@@ -38,34 +38,44 @@ func (w *World) ApplyBoundaries(a *agents.Agent) {
 // 	}
 // }
 
-func (w *World) Tick(dt time.Duration) {
+func (w *World) Tick(dt time.Duration) []agents.Agent {
 	w.Grid.Clear()
 	n := len(w.Agents)
 	if n == 0 {
-		return
+		return nil
 	}
 
 	results := make([]agents.Agent, n)
+	changedFlags := make([]bool, n)
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := range n {
+	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
 			agent := &w.Agents[i]
-			agent.Tick(dt, w.Width, w.Height)
+			changed := agent.Tick(dt, w.Width, w.Height)
 			results[i] = *agent
+			if changed {
+				changedFlags[i] = true
+			}
 		}(i)
 	}
 
 	wg.Wait()
 
+	var changedAgents []agents.Agent
 	for i := 0; i < n; i++ {
 		a := results[i]
 		w.Grid.Insert(a.ID, float32(a.X), float32(a.Z))
+		if changedFlags[i] {
+			changedAgents = append(changedAgents, a)
+		}
 	}
+
+	return changedAgents
 }
 
-func NewWorld(Width int, Height int) World {
+func NewWorld(Width, Height float64) World {
 	return World{
 		Width:  Width,
 		Height: Height,

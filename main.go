@@ -8,20 +8,21 @@ import (
 
 func main() {
 	ticker := time.NewTicker(time.Millisecond * 50)
-	var world = world.NewWorld(5, 5)
+	w := world.NewWorld(5, 5)
 	worldSeed := int64(123456)
 
 	go StartWebSocketServer()
 
-	for range 1000 {
-		world.Agents = append(world.Agents, agents.CreateSimpleAgent(worldSeed, world.Width, world.Height))
+	for i := 0; i < 10000; i++ {
+		w.Agents = append(w.Agents, agents.CreateSimpleAgent(worldSeed, w.Width, w.Height))
 	}
+
 	tick := 0
-	time := 50 * time.Millisecond
+	tickDur := 50 * time.Millisecond
 	for range ticker.C {
 		tick++
-		world.Tick(time)
-		// broadcast a lightweight snapshot to connected websocket clients
-		BroadcastWorld(tick, &world)
+		updated := w.Tick(tickDur)
+		// broadcast a lightweight snapshot (only changed agents) to connected websocket clients
+		BroadcastWorld(tick, updated)
 	}
 }

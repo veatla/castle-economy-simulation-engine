@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	"example/hello/src/world"
+	"example/hello/src/agents"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -91,12 +91,28 @@ type BroadcastMessage struct {
 	Updated []agentSnapshot `json:"updated"`
 }
 
-// BroadcastWorld sends a JSON message with tick and updated agents to clients
-func BroadcastWorld(tick int, w *world.World) {
-	snap := make([]agentSnapshot, 0, len(w.Agents))
-	for _, a := range w.Agents {
-		snap = append(snap, agentSnapshot{ID: a.ID, X: a.X, Z: a.Z, Type: "agent"})
+// BroadcastWorld sends only updated agents to clients in batches.
+func BroadcastWorld(tick int, updated []agents.Agent) {
+	const batchSize = 1000
+	total := len(updated)
+	if total == 0 {
+		// small heartbeat message
+		msg := BroadcastMessage{Tick: tick, Updated: []agentSnapshot{}}
+		hub.broadcast(msg)
+		return
 	}
-	msg := BroadcastMessage{Tick: tick, Updated: snap}
-	hub.broadcast(msg)
+
+	for start := 0; start < total; start += batchSize {
+		end := start + batchSize
+		if end > total {
+			end = total
+		}
+		chunk := updated[start:end]
+		snap := make([]agentSnapshot, 0, len(chunk))
+		for _, a := range chunk {
+			snap = append(snap, agentSnapshot{ID: a.ID, X: a.X, Z: a.Z, Type: "agent"})
+		}
+		msg := BroadcastMessage{Tick: tick, Updated: snap}
+		hub.broadcast(msg)
+	}
 }
