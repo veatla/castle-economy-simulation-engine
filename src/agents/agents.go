@@ -1,7 +1,7 @@
 package agents
 
 import (
-	"encoding/binary"
+	"example/hello/src/utils"
 	"math"
 	"math/rand"
 	"time"
@@ -28,15 +28,9 @@ type Wandering struct {
 	speed float64
 }
 
-var lastID = 0
-
-func uuidToInt64(u uuid.UUID) uint64 {
-	return binary.BigEndian.Uint64(u[8:16])
-}
 func CreateSimpleAgent(seed int64, worldWidth, worldHeight float64) Agent {
-	lastID += 1
 	id := uuid.New()
-	r := rand.New(rand.NewSource(seed + -int64(uuidToInt64(id))))
+	r := rand.New(rand.NewSource(seed + utils.UUIDToInt64(id)))
 	angle := r.Float64() * 2 * math.Pi
 
 	agent := Agent{
@@ -54,9 +48,7 @@ func CreateSimpleAgent(seed int64, worldWidth, worldHeight float64) Agent {
 	agent.Wandering = agent.SetWanderingTarget(worldWidth, worldHeight)
 	return agent
 }
-func clamp(value, min, max float64) float64 {
-	return math.Min(math.Max(value, min), max)
-}
+
 func (agent *Agent) Tick(dt time.Duration, worldWidth, worldHeight float64) bool {
 	oldX, oldZ := agent.X, agent.Z
 
@@ -101,8 +93,8 @@ func (agent *Agent) SetWanderingTarget(worldWidth, worldHeight float64) Wanderin
 
 	return Wandering{
 		speed: 0.03 + agent.rng.Float64()*0.02,
-		X:     clamp(agent.X+dx, 0, worldWidth),
-		Z:     clamp(agent.Z+dz, 0, worldHeight),
+		X:     utils.Clamp(agent.X+dx, 0, worldWidth),
+		Z:     utils.Clamp(agent.Z+dz, 0, worldHeight),
 		wait:  time.Duration(500+agent.rng.Intn(1200)) * time.Millisecond,
 	}
 }

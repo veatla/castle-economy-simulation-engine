@@ -13,7 +13,7 @@ func main() {
 
 	go StartWebSocketServer()
 
-	for i := 0; i < 1000; i++ {
+	for range 1 {
 		w.Agents = append(w.Agents, agents.CreateSimpleAgent(worldSeed, w.Width, w.Height))
 	}
 

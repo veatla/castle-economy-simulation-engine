@@ -3,7 +3,8 @@ package spatialhash
 import "github.com/google/uuid"
 
 type Cell struct {
-	agents []uuid.UUID
+	agents    []uuid.UUID
+	obstacles []uuid.UUID
 }
 type SpatialHash struct {
 	CellSize float32
@@ -21,7 +22,6 @@ func (s *SpatialHash) Clear() {
 	for _, c := range s.Cells {
 		c.agents = c.agents[:0]
 	}
-
 }
 
 func (s *SpatialHash) Insert(agentID uuid.UUID, x, z float32) {

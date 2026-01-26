@@ -2,6 +2,7 @@ package world
 
 import (
 	"example/hello/src/agents"
+	"example/hello/src/constructions"
 	spatialhash "example/hello/src/spatial-hash"
 	"sync"
 	"time"
@@ -10,10 +11,11 @@ import (
 type WorldID string
 
 type World struct {
-	Width  float64
-	Height float64
-	Agents []agents.Agent
-	Grid   spatialhash.SpatialHash
+	Width     float64
+	Height    float64
+	Agents    []agents.Agent
+	Obstacles []constructions.Obstacle
+	Grid      spatialhash.SpatialHash
 }
 
 func (w *World) ApplyBoundaries(a *agents.Agent) {
@@ -49,7 +51,7 @@ func (w *World) Tick(dt time.Duration) []agents.Agent {
 	changedFlags := make([]bool, n)
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		go func(i int) {
 			defer wg.Done()
 			agent := &w.Agents[i]
@@ -73,6 +75,16 @@ func (w *World) Tick(dt time.Duration) []agents.Agent {
 	}
 
 	return changedAgents
+}
+
+func (w *World) isPointBlocked(x, z float64) bool {
+	for _, o := range w.Obstacles {
+		if x >= o.MinX && x <= o.MaxX &&
+			z >= o.MinZ && z <= o.MaxZ {
+			return true
+		}
+	}
+	return false
 }
 
 func NewWorld(Width, Height float64) World {
