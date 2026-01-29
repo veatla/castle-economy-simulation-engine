@@ -1,21 +1,36 @@
 package world
 
 import (
-	"example/hello/src/agents"
-	"example/hello/src/constructions"
-	spatialhash "example/hello/src/spatial-hash"
+	"math/rand"
 	"sync"
 	"time"
+	"veatla/simulator/src/agents"
+	"veatla/simulator/src/constructions"
+	spatialhash "veatla/simulator/src/spatial-hash"
 )
 
 type WorldID string
 
 type World struct {
+	rng       *rand.Rand
+	Seed      int64
 	Width     float64
 	Height    float64
 	Agents    []agents.Agent
 	Obstacles []constructions.Obstacle
 	Grid      spatialhash.SpatialHash
+}
+
+func (w *World) IsPointBlocked(x, z float64) bool {
+	return w.Grid.IsPointBlocked(x, z)
+}
+
+func (w *World) RandomFloat() float64 {
+	return w.rng.Float64()
+}
+
+func (w *World) GetBoundaries() (width, height float64) {
+	return w.Width, w.Height
 }
 
 func (w *World) ApplyBoundaries(a *agents.Agent) {
@@ -40,8 +55,8 @@ func (w *World) ApplyBoundaries(a *agents.Agent) {
 // 	}
 // }
 
-func (w *World) Tick(dt time.Duration) []agents.Agent {
-	w.Grid.Clear()
+func (w *World) AgentsTick(dt time.Duration) []agents.Agent {
+	w.Grid.Clear(false)
 	n := len(w.Agents)
 	if n == 0 {
 		return nil
@@ -50,12 +65,14 @@ func (w *World) Tick(dt time.Duration) []agents.Agent {
 	results := make([]agents.Agent, n)
 	changedFlags := make([]bool, n)
 	var wg sync.WaitGroup
+
 	wg.Add(n)
+
 	for i := range n {
 		go func(i int) {
 			defer wg.Done()
 			agent := &w.Agents[i]
-			changed := agent.Tick(dt, w.Width, w.Height)
+			changed := agent.Tick(dt, w)
 			results[i] = *agent
 			if changed {
 				changedFlags[i] = true
@@ -66,9 +83,9 @@ func (w *World) Tick(dt time.Duration) []agents.Agent {
 	wg.Wait()
 
 	var changedAgents []agents.Agent
-	for i := 0; i < n; i++ {
+	for i := range n {
 		a := results[i]
-		w.Grid.Insert(a.ID, float32(a.X), float32(a.Z))
+		w.Grid.Insert(a.ID, a.X, a.Z, a.Width+a.X, a.Height+a.Z, false)
 		if changedFlags[i] {
 			changedAgents = append(changedAgents, a)
 		}
@@ -77,24 +94,20 @@ func (w *World) Tick(dt time.Duration) []agents.Agent {
 	return changedAgents
 }
 
-func (w *World) isPointBlocked(x, z float64) bool {
-	for _, o := range w.Obstacles {
-		if x >= o.MinX && x <= o.MaxX &&
-			z >= o.MinZ && z <= o.MaxZ {
-			return true
-		}
-	}
-	return false
+func (w *World) GetWorldSeed() int64 {
+	return w.Seed
 }
 
-func NewWorld(Width, Height float64) World {
+func NewWorld(Seed int64, Width, Height float64) World {
 	return World{
+		Seed:   Seed,
 		Width:  Width,
 		Height: Height,
 		Grid: spatialhash.SpatialHash{
-			CellSize: 100,
+			CellSize: 1,
 			Cells:    make(map[int64]*spatialhash.Cell),
 		},
+		rng: rand.New(rand.NewSource(Seed)),
 		// Agents: NewWorld().Agents,
 	}
 }

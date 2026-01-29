@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"sync"
 
-	"example/hello/src/agents"
+	"veatla/simulator/src/agents"
+	"veatla/simulator/src/constructions"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -87,19 +88,41 @@ type agentSnapshot struct {
 	Type     string    `json:"type"`
 }
 
+type obstacleSnapshot struct {
+	ID   uuid.UUID `json:"id"`
+	MinX float64   `json:"minX"`
+	MinZ float64   `json:"minZ"`
+	MaxX float64   `json:"maxX"`
+	MaxZ float64   `json:"maxZ"`
+	Type string    `json:"type"`
+}
+
 // BroadcastMessage is the shape sent to clients
 type BroadcastMessage struct {
-	Tick    int             `json:"tick"`
-	Updated []agentSnapshot `json:"updated"`
+	Tick      int                `json:"tick"`
+	Updated   []agentSnapshot    `json:"updated"`
+	Obstacles []obstacleSnapshot `json:"obstacles"`
 }
 
 // BroadcastWorld sends only updated agents to clients in batches.
-func BroadcastWorld(tick int, updated []agents.Agent) {
+func BroadcastWorld(tick int, updated []agents.Agent, obstacles []constructions.Obstacle) {
 	const batchSize = 1000
 	total := len(updated)
+	obsSnap := make([]obstacleSnapshot, 0, len(obstacles))
+	for _, o := range obstacles {
+		obsSnap = append(obsSnap, obstacleSnapshot{
+			ID:   o.ID,
+			MinX: o.MinX,
+			MinZ: o.MinZ,
+			MaxX: o.MaxX,
+			MaxZ: o.MaxZ,
+			Type: "obstacle",
+		})
+	}
+
 	if total == 0 {
 		// small heartbeat message
-		msg := BroadcastMessage{Tick: tick, Updated: []agentSnapshot{}}
+		msg := BroadcastMessage{Tick: tick, Updated: []agentSnapshot{}, Obstacles: obsSnap}
 		hub.broadcast(msg)
 		return
 	}
@@ -120,7 +143,7 @@ func BroadcastWorld(tick int, updated []agents.Agent) {
 				Rotation: math.Atan2(a.VZ, a.VX) + math.Pi/2,
 			})
 		}
-		msg := BroadcastMessage{Tick: tick, Updated: snap}
+		msg := BroadcastMessage{Tick: tick, Updated: snap, Obstacles: obsSnap}
 		hub.broadcast(msg)
 	}
 }

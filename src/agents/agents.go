@@ -1,10 +1,11 @@
 package agents
 
 import (
-	"example/hello/src/utils"
 	"math"
 	"math/rand"
 	"time"
+	"veatla/simulator/src/utils"
+	worldQuery "veatla/simulator/src/world-query"
 
 	"github.com/google/uuid"
 )
@@ -28,15 +29,24 @@ type Wandering struct {
 	speed float64
 }
 
-func CreateSimpleAgent(seed int64, worldWidth, worldHeight float64) Agent {
+func CreateSimpleAgent(q worldQuery.WorldQuery) Agent {
 	id := uuid.New()
-	r := rand.New(rand.NewSource(seed + utils.UUIDToInt64(id)))
+	r := rand.New(rand.NewSource(q.GetWorldSeed() + utils.UUIDToInt64(id)))
 	angle := r.Float64() * 2 * math.Pi
+	worldWidth, worldHeight := q.GetBoundaries()
+
+	tx := r.Float64() * worldWidth
+	tz := r.Float64() * worldHeight
+
+	for q.IsPointBlocked(tx, tz) {
+		tx = r.Float64() * worldWidth
+		tz = r.Float64() * worldHeight
+	}
 
 	agent := Agent{
 		ID:          id,
-		X:           r.Float64() * worldWidth,
-		Z:           r.Float64() * worldHeight,
+		X:           tx,
+		Z:           tz,
 		Width:       1.0,
 		Height:      1.0,
 		VX:          math.Cos(angle),
@@ -45,15 +55,15 @@ func CreateSimpleAgent(seed int64, worldWidth, worldHeight float64) Agent {
 		changeDirIn: r.Intn(200) + 50,
 		rng:         r,
 	}
-	agent.Wandering = agent.SetWanderingTarget(worldWidth, worldHeight)
+	agent.Wandering = agent.SetWanderingTarget(q)
 	return agent
 }
 
-func (agent *Agent) Tick(dt time.Duration, worldWidth, worldHeight float64) bool {
+func (agent *Agent) Tick(dt time.Duration, q worldQuery.WorldQuery) bool {
 	oldX, oldZ := agent.X, agent.Z
 
 	if agent.Wandering.wait <= 0 {
-		agent.Wandering = agent.SetWanderingTarget(worldWidth, worldHeight)
+		agent.Wandering = agent.SetWanderingTarget(q)
 	}
 
 	dx := agent.Wandering.X - agent.X
@@ -63,21 +73,19 @@ func (agent *Agent) Tick(dt time.Duration, worldWidth, worldHeight float64) bool
 
 	if dist2 < reachDist*reachDist {
 		agent.Wandering.wait -= dt
-		// no movement in this tick
 		return math.Abs(oldX-agent.X) > 1e-9 || math.Abs(oldZ-agent.Z) > 1e-9
 	}
 
-	agent.MoveTorwardsWanderingTarget()
+	agent.MoveTorwardsWanderingTarget(q)
 	return math.Abs(oldX-agent.X) > 1e-9 || math.Abs(oldZ-agent.Z) > 1e-9
 }
 
-func (agent *Agent) SetWanderingTarget(worldWidth, worldHeight float64) Wandering {
+func (agent *Agent) SetWanderingTarget(q worldQuery.WorldQuery) Wandering {
 
 	const maxRadius = 30.0
 
 	angle := agent.rng.Float64() * 2 * math.Pi
 
-	// sqrt — обязательно, иначе будет bias к центру
 	radius := math.Sqrt(agent.rng.Float64()) * maxRadius
 
 	dx := math.Cos(angle) * radius
@@ -86,9 +94,10 @@ func (agent *Agent) SetWanderingTarget(worldWidth, worldHeight float64) Wanderin
 	tx := agent.X + dx
 	tz := agent.Z + dz
 
-	if tx < 0 || tx > worldWidth || tz < 0 || tz > worldHeight {
-		// если вышли — просто пробуем ещё раз
-		return agent.SetWanderingTarget(worldWidth, worldHeight)
+	worldWidth, worldHeight := q.GetBoundaries()
+
+	if tx < 0 || tx > worldWidth || tz < 0 || tz > worldHeight || q.IsPointBlocked(tx, tz) {
+		return agent.SetWanderingTarget(q)
 	}
 
 	return Wandering{
@@ -98,11 +107,12 @@ func (agent *Agent) SetWanderingTarget(worldWidth, worldHeight float64) Wanderin
 		wait:  time.Duration(500+agent.rng.Intn(1200)) * time.Millisecond,
 	}
 }
-func (agent *Agent) MoveTorwardsWanderingTarget() {
+func (agent *Agent) MoveTorwardsWanderingTarget(q worldQuery.WorldQuery) {
 	dx := agent.Wandering.X - agent.X
 	dz := agent.Wandering.Z - agent.Z
 
 	length := math.Sqrt(dx*dx + dz*dz)
+
 	if length == 0 {
 		agent.VX = 0
 		agent.VZ = 0
@@ -114,9 +124,19 @@ func (agent *Agent) MoveTorwardsWanderingTarget() {
 
 	agent.VX = dx * (agent.baseSpeed + agent.Wandering.speed)
 	agent.VZ = dz * (agent.baseSpeed + agent.Wandering.speed)
+	nextZ := agent.Z + agent.VZ
+	nextX := agent.X + agent.VX
 
-	agent.X += agent.VX
-	agent.Z += agent.VZ
+	if q.IsPointBlocked(nextX, nextZ) {
+		agent.ChooseNewDirection(q.RandomFloat())
+	} else {
+		agent.X += agent.VX
+		agent.Z += agent.VZ
+	}
+}
+
+func (agent *Agent) ChooseNewDirection(randomFloat float64) {
+
 }
 
 // func (agent *Agent) WanderingTarget(worldWidth, worldHeight int) {

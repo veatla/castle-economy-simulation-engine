@@ -1,8 +1,8 @@
 package manager
 
 import (
-	"example/hello/src/world"
 	"sync"
+	"veatla/simulator/src/world"
 )
 
 type WorldManager struct {

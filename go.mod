@@ -1,4 +1,4 @@
-module example/hello
+module veatla/simulator
 
 go 1.25.6
 

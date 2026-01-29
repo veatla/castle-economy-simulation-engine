@@ -2,10 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
 type AgentUpdate = {
-  id: number;
+  id: string;
   x: number;
   z: number;
   rotation: number;
+  type: string;
+};
+
+type ObstacleUpdate = {
+  id: string;
+  minX: number;
+  minZ: number;
+  maxX: number;
+  maxZ: number;
   type: string;
 };
 function getRotationFromVelocity(vx: number, vz: number) {
@@ -15,7 +24,8 @@ function App() {
   const [tick, setTick] = useState<number | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<PIXI.Application | null>(null);
-  const spritesRef = useRef<Map<number, PIXI.Graphics>>(new Map());
+  const spritesRef = useRef<Map<string, PIXI.Graphics>>(new Map());
+  const obstaclesRef = useRef<Map<string, PIXI.Graphics>>(new Map());
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -38,7 +48,7 @@ function App() {
     const ws = new WebSocket("ws://localhost:8080/ws");
     ws.addEventListener("message", (ev) => {
       try {
-        const data = JSON.parse(ev.data) as { tick: number; updated: AgentUpdate[] };
+        const data = JSON.parse(ev.data) as { tick: number; updated: AgentUpdate[]; obstacles: ObstacleUpdate[] };
         setTick(data.tick);
         const app = appRef.current;
         if (!app) return;
@@ -49,39 +59,63 @@ function App() {
         data.updated.forEach((u) => {
           if (u.type !== "agent") return;
           let g = spritesRef.current.get(u.id);
-          const screenX = (u.x / 5) * W;
-          const screenY = (u.z / 5) * H;
+          const screenX = (u.x / 50) * W;
+          const screenY = (u.z / 50) * H;
 
           if (!g) {
             g = new PIXI.Graphics();
             g.beginFill(0xffcc00);
             // g.drawRect(0, 0, 10, 10);
-            const x1 = 10;
-            const y1 = 10;
-            const x2 = 5;
-            const y2 = 20;
-            const x3 = 15;
-            const y3 = 20;
+            const x1 = 2.5 * 2;
+            const y1 = 2.5 * 2;
+            const x2 = 1.25 * 2;
+            const y2 = 5 * 2;
+            const x3 = 3.75 * 2;
+            const y3 = 5 * 2;
 
             g.moveTo(x1, y1);
             g.lineTo(x2, y2);
             g.lineTo(x3, y3);
             g.lineTo(x1, y1);
             g.endFill();
-            // set pivot to the triangle center so rotation happens around the sprite center
-            g.pivot.set(10, 15);
+            
+            g.pivot.set(2.5 * 2, 3.75 * 2);
+            
             g.x = screenX;
             g.y = screenY;
+            
             g.rotation = u.rotation;
             g.zIndex = 1;
+            
             app.stage.addChild(g);
             spritesRef.current.set(u.id, g);
           } else {
-            // compute rotation from velocity; add +90deg because graphic's tip is upwards
             g.rotation = u.rotation;
             g.x += (screenX - g.x) * 0.6;
             g.y += (screenY - g.y) * 0.6;
           }
+        });
+
+        data.obstacles.forEach((o) => {
+          if (o.type !== "obstacle") return;
+          let g = obstaclesRef.current.get(o.id);
+          if (!g) {
+            g = new PIXI.Graphics();
+            g.beginFill(0x0000ff); // blue color
+            const width = Math.abs((o.maxX - o.minX) / 50) * W;
+            const height = Math.abs((o.maxZ - o.minZ) / 50) * H;
+            const screenX = (Math.min(o.minX, o.maxX) / 50) * W;
+            const screenY = (Math.min(o.minZ, o.maxZ) / 50) * H;
+            g.drawRect(0, 0, width, height);
+            g.endFill();
+            g.x = screenX;
+            g.y = screenY;
+            g.tint = 0x0000ff;
+            g.zIndex = 0; // behind agents
+            app.stage.addChild(g);
+            obstaclesRef.current.set(o.id, g);
+          }
+          // obstacles don't move, so no update needed
         });
       } catch (e) {
         // ignore
@@ -92,7 +126,7 @@ function App() {
 
   return (
     <div style={{ display: "flex", gap: 12 }}>
-      <div style={{ width: 500, height: 500 }} ref={stageRef} />
+      <div style={{ width: 1000, height: 1000 }} ref={stageRef} />
       <div style={{ width: 220 }}>
         <div style={{ marginBottom: 8 }}>
           <strong>Tick:</strong> {tick ?? "-"}

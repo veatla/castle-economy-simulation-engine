@@ -10,7 +10,7 @@ type Obstacle struct {
 
 func CreateObstacle(MinX, MinZ, MaxX, MaxZ float64) Obstacle {
 	return Obstacle{
-
+		ID:   uuid.New(),
 		MinX: MinX,
 		MinZ: MinZ,
 		MaxX: MaxX,
