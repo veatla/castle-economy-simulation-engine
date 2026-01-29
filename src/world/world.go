@@ -56,7 +56,6 @@ func (w *World) ApplyBoundaries(a *agents.Agent) {
 // }
 
 func (w *World) AgentsTick(dt time.Duration) []agents.Agent {
-	w.Grid.Clear(false)
 	n := len(w.Agents)
 	if n == 0 {
 		return nil

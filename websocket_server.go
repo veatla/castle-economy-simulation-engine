@@ -86,6 +86,11 @@ type agentSnapshot struct {
 	Z        float64   `json:"z"`
 	Rotation float64   `json:"rotation"`
 	Type     string    `json:"type"`
+	// Debug: path waypoints
+	Path []struct {
+		X float64 `json:"x"`
+		Z float64 `json:"z"`
+	} `json:"path,omitempty"`
 }
 
 type obstacleSnapshot struct {
@@ -135,13 +140,25 @@ func BroadcastWorld(tick int, updated []agents.Agent, obstacles []constructions.
 		chunk := updated[start:end]
 		snap := make([]agentSnapshot, 0, len(chunk))
 		for _, a := range chunk {
-			snap = append(snap, agentSnapshot{
+			as := agentSnapshot{
 				ID:       a.ID,
 				X:        a.X,
 				Z:        a.Z,
 				Type:     "agent",
 				Rotation: math.Atan2(a.VZ, a.VX) + math.Pi/2,
-			})
+			}
+			// include path waypoints if available
+			if len(a.GetPath()) > 0 {
+				as.Path = make([]struct {
+					X float64 `json:"x"`
+					Z float64 `json:"z"`
+				}, len(a.GetPath()))
+				for i, p := range a.GetPath() {
+					as.Path[i].X = p.X
+					as.Path[i].Z = p.Z
+				}
+			}
+			snap = append(snap, as)
 		}
 		msg := BroadcastMessage{Tick: tick, Updated: snap, Obstacles: obsSnap}
 		hub.broadcast(msg)

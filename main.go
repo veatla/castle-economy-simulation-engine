@@ -13,10 +13,6 @@ func main() {
 
 	go StartWebSocketServer()
 
-	for range 100 {
-		w.Agents = append(w.Agents, agents.CreateSimpleAgent(&w))
-	}
-
 	// for range 1 {
 	w.Obstacles = append(w.Obstacles,
 		constructions.CreateObstacle(1, 1, 10, 10),
@@ -39,10 +35,16 @@ func main() {
 		)
 	}
 
+	for range 100 {
+		w.Agents = append(w.Agents, agents.CreateSimpleAgent(&w))
+	}
+
 	tick := 0
 	tickDur := 50 * time.Millisecond
 	for range ticker.C {
 		tick++
+		w.Grid.Clear(false)
+
 		updated := w.AgentsTick(tickDur)
 
 		// broadcast a lightweight snapshot (only changed agents) to connected websocket clients

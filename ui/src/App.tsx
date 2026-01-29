@@ -7,6 +7,7 @@ type AgentUpdate = {
   z: number;
   rotation: number;
   type: string;
+  path?: Array<{ x: number; z: number }>;
 };
 
 type ObstacleUpdate = {
@@ -26,6 +27,8 @@ function App() {
   const appRef = useRef<PIXI.Application | null>(null);
   const spritesRef = useRef<Map<string, PIXI.Graphics>>(new Map());
   const obstaclesRef = useRef<Map<string, PIXI.Graphics>>(new Map());
+  const linesRef = useRef<Map<string, PIXI.Graphics>>(new Map());
+  const targetsRef = useRef<Map<string, PIXI.Graphics>>(new Map());
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -78,6 +81,7 @@ function App() {
             g.lineTo(x3, y3);
             g.lineTo(x1, y1);
             g.endFill();
+            g.zIndex = 1000;
             
             g.pivot.set(2.5 * 2, 3.75 * 2);
             
@@ -93,6 +97,72 @@ function App() {
             g.rotation = u.rotation;
             g.x += (screenX - g.x) * 0.6;
             g.y += (screenY - g.y) * 0.6;
+          }
+
+          // draw debug path waypoints
+          let line = linesRef.current.get(u.id);
+          if (!line) {
+            line = new PIXI.Graphics();
+            line.zIndex = 0.5;
+            app.stage.addChild(line);
+            linesRef.current.set(u.id, line);
+          }
+          line.clear();
+            line.zIndex = 1000;
+
+          if (u.path && u.path.length > 0) {
+            // draw lines between waypoints
+            line.lineStyle(2, 0x00ff00, 0.8);
+            let lastX = g.x;
+            let lastY = g.y;
+            for (let i = 0; i < u.path.length; i++) {
+              const wp = u.path[i];
+              const wpX = (wp.x / 50) * W;
+              const wpY = (wp.z / 50) * H;
+              line.moveTo(lastX, lastY);
+              line.lineTo(wpX, wpY);
+              lastX = wpX;
+              lastY = wpY;
+            }
+
+            // draw waypoint markers
+            let marker = targetsRef.current.get(u.id);
+            if (!marker) {
+              marker = new PIXI.Graphics();
+              marker.zIndex = 0.6;
+              app.stage.addChild(marker);
+              targetsRef.current.set(u.id, marker);
+            }
+            marker.clear();
+            // draw small circles at each waypoint
+            for (let i = 0; i < u.path.length; i++) {
+              const wp = u.path[i];
+              const wpX = (wp.x / 50) * W;
+              const wpY = (wp.z / 50) * H;
+              if (i === 0) {
+                marker.beginFill(0xffff00); 
+              } else {
+
+                marker.beginFill(0x00ff00);
+              }
+              marker.drawCircle(wpX, wpY, 3);
+              marker.endFill();
+            }
+            // final target in red
+            if (u.path.length > 0) {
+              const last = u.path[u.path.length - 1];
+              const lastX = (last.x / 50) * W;
+              const lastY = (last.z / 50) * H;
+              marker.beginFill(0xff0000);
+              marker.drawCircle(lastX, lastY, 4);
+              marker.endFill();
+            }
+          } else {
+            // no path, clear markers
+            const marker = targetsRef.current.get(u.id);
+            if (marker) {
+              marker.clear();
+            }
           }
         });
 
