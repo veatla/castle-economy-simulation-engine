@@ -127,7 +127,7 @@ func (agent *Agent) Tick(dt time.Duration, q worldQuery.WorldQuery) bool {
 func (agent *Agent) SetWanderingTarget(q worldQuery.WorldQuery) Wandering {
 
 	const maxRadius = 30.0
-	const obstacleOffset = 10.0 // 10-unit offset from buildings/obstacles
+	const obstacleOffset = 1.0 // 10-unit offset from buildings/obstacles
 
 	angle := agent.rng.Float64() * 2 * math.Pi
 
@@ -233,7 +233,7 @@ func (agent *Agent) MoveTorwardsWanderingTarget(q worldQuery.WorldQuery) {
 
 // navigateWithAStar uses A* algorithm to find path around obstacles
 func (agent *Agent) navigateWithAStar(q worldQuery.WorldQuery) {
-	const obstacleOffset = 10.0
+	const obstacleOffset = 1.0
 
 	path, found, _ := navgrid.AStarPath(
 		agent.X, agent.Z,
@@ -272,7 +272,7 @@ func (agent *Agent) detectStuck(q worldQuery.WorldQuery) {
 
 			// Attempt to recompute A* path only if cooldown has elapsed (expensive operation)
 			if agent.stuckCounter%replanCooldown == 0 {
-				const obstacleOffset = 10.0
+				const obstacleOffset = 1.0
 				if agent.Wandering.X != agent.X || agent.Wandering.Z != agent.Z {
 					path, found, _ := navgrid.AStarPath(agent.X, agent.Z, agent.Wandering.X, agent.Wandering.Z, q, obstacleOffset)
 					if found && len(path) > 0 {
