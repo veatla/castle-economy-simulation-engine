@@ -109,7 +109,7 @@ func (agent *Agent) Tick(dt time.Duration, q worldQuery.WorldQuery) bool {
 	const reachDist = 0.5
 
 	if dist2 < reachDist*reachDist {
-		// Reached target: decrease wait time
+		// Reached target: decrease wait time; only then we may get a new target when wait <= 0
 		agent.Wandering.wait -= dt
 		return math.Abs(oldX-agent.X) > 1e-9 || math.Abs(oldZ-agent.Z) > 1e-9
 	}
@@ -118,19 +118,20 @@ func (agent *Agent) Tick(dt time.Duration, q worldQuery.WorldQuery) bool {
 	agent.MoveTorwardsWanderingTarget(q)
 	agent.detectStuck(q)
 
-	// Even if stuck/no path, decrease wait time so we can get a new target eventually
-	agent.Wandering.wait -= time.Duration(float64(dt) * 0.1)
+	// Do NOT decrease wait here: new target only when actually reached or when path is blocked and A* fails
 
 	return math.Abs(oldX-agent.X) > 1e-9 || math.Abs(oldZ-agent.Z) > 1e-9
 }
 
 func (agent *Agent) SetWanderingTarget(q worldQuery.WorldQuery) Wandering {
+	return agent.setWanderingTargetWithRadius(q, 30.0)
+}
 
-	const maxRadius = 30.0
+// setWanderingTargetWithRadius picks a random target within maxRadius; use smaller radius when stuck so A* can find a path.
+func (agent *Agent) setWanderingTargetWithRadius(q worldQuery.WorldQuery, maxRadius float64) Wandering {
 	const obstacleOffset = 1.0 // 10-unit offset from buildings/obstacles
 
 	angle := agent.rng.Float64() * 2 * math.Pi
-
 	radius := math.Sqrt(agent.rng.Float64()) * maxRadius
 
 	dx := math.Cos(angle) * radius
@@ -181,7 +182,8 @@ func (agent *Agent) SetWanderingTarget(q worldQuery.WorldQuery) Wandering {
 		speed: 0.03 + agent.rng.Float64()*0.02,
 		X:     targetX,
 		Z:     targetZ,
-		wait:  time.Duration(500+agent.rng.Intn(1000)) * time.Millisecond,
+		wait:  500 * time.Millisecond,
+		// wait: time.Duration(500+agent.rng.Intn(1000)) * time.Millisecond,
 	}
 }
 func (agent *Agent) MoveTorwardsWanderingTarget(q worldQuery.WorldQuery) {
@@ -226,9 +228,30 @@ func (agent *Agent) MoveTorwardsWanderingTarget(q worldQuery.WorldQuery) {
 		return
 	}
 
-	// No path: stand still
-	agent.VX = 0
-	agent.VZ = 0
+	// No path: try moving directly toward target (may help escape tight spots)
+	dx := agent.Wandering.X - agent.X
+	dz := agent.Wandering.Z - agent.Z
+	dist := math.Sqrt(dx*dx + dz*dz)
+	if dist < 1e-6 {
+		agent.VX = 0
+		agent.VZ = 0
+		return
+	}
+	dx /= dist
+	dz /= dist
+	step := agent.baseSpeed + agent.Wandering.speed
+	nextX := agent.X + dx*step
+	nextZ := agent.Z + dz*step
+	if !q.IsPointBlocked(nextX, nextZ) {
+		worldWidth, worldHeight := q.GetBoundaries()
+		agent.X = utils.Clamp(nextX, 0, worldWidth)
+		agent.Z = utils.Clamp(nextZ, 0, worldHeight)
+		agent.VX = dx * step
+		agent.VZ = dz * step
+		return
+	}
+	// Direct move blocked: try to find path or new target
+	agent.navigateWithAStar(q)
 }
 
 // navigateWithAStar uses A* algorithm to find path around obstacles
@@ -242,7 +265,11 @@ func (agent *Agent) navigateWithAStar(q worldQuery.WorldQuery) {
 	)
 
 	if !found || len(path) == 0 {
-		// A* failed; just continue with current movement
+		// Path blocked / no route: pick a new wandering target instead of staying stuck
+		agent.Wandering = agent.SetWanderingTarget(q)
+		agent.stuckCounter = 0
+		agent.lastX = agent.X
+		agent.lastZ = agent.Z
 		return
 	}
 
@@ -267,8 +294,10 @@ func (agent *Agent) detectStuck(q worldQuery.WorldQuery) {
 	if distance < epsilon {
 		agent.stuckCounter++
 		if agent.stuckCounter > agent.stuckThreshold {
-			log.Printf("Agent %s is STUCK at position (%.2f, %.2f) for %d ticks",
-				agent.ID.String()[:8], agent.X, agent.Z, agent.stuckCounter)
+			log.Printf("Agent %s is STUCK at position (%.2f, %.2f) for %d ticks with distance %.2f",
+				agent.ID.String()[:8], agent.X, agent.Z, agent.stuckCounter,
+				distance,
+			)
 
 			// Attempt to recompute A* path only if cooldown has elapsed (expensive operation)
 			if agent.stuckCounter%replanCooldown == 0 {
@@ -282,10 +311,15 @@ func (agent *Agent) detectStuck(q worldQuery.WorldQuery) {
 						} else {
 							agent.pathIndex = 0
 						}
+					} else {
+						// Cannot reach current target: try a closer wandering target so A* can find a path
+						agent.Wandering = agent.setWanderingTargetWithRadius(q, 8.0)
 					}
 				}
 			}
 			agent.stuckCounter = 0
+			agent.lastX = agent.X
+			agent.lastZ = agent.Z
 		}
 	} else {
 		agent.stuckCounter = 0
@@ -311,8 +345,9 @@ func (agent *Agent) logWanderingEvent(q worldQuery.WorldQuery) {
 	agent.wanderingEvents = append(agent.wanderingEvents, event)
 	agent.lastWanderTime = now
 
-	log.Printf("Agent %s wandering from (%.2f, %.2f) to (%.2f, %.2f) for %v",
-		agent.ID.String()[:8], event.X, event.Z, event.TargetX, event.TargetZ, event.Duration)
+	// log.Printf("Agent %s wandering from (%.2f, %.2f) to (%.2f, %.2f) for %v",
+	//
+	//	agent.ID.String()[:8], event.X, event.Z, event.TargetX, event.TargetZ, event.Duration)
 }
 
 // GetWanderingEvents returns all recorded wandering events
