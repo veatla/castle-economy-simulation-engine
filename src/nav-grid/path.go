@@ -126,8 +126,8 @@ func AStarPath(startX, startZ, goalX, goalZ float64, q worldQuery.WorldQuery, ob
 	}
 
 	// Simplify path by removing redundant waypoints
-	simplified := simplifyPath(rawPath)
-	return simplified, true, total
+	// simplified := simplifyPath(rawPath)
+	return rawPath, true, total
 }
 
 // aStarSearch performs the A* search but does not run post-validation. It returns the raw path.

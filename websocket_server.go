@@ -86,6 +86,7 @@ type agentSnapshot struct {
 	Z        float64   `json:"z"`
 	Rotation float64   `json:"rotation"`
 	Type     string    `json:"type"`
+	NoPath   bool      `json:"noPath,omitempty"`
 	// Debug: path waypoints
 	Path []struct {
 		X float64 `json:"x"`
@@ -147,6 +148,8 @@ func BroadcastWorld(tick int, updated []agents.Agent, obstacles []constructions.
 				Type:     "agent",
 				Rotation: math.Atan2(a.VZ, a.VX) + math.Pi/2,
 			}
+			// mark no-path state so UI can highlight agent
+			as.NoPath = a.NoPath
 			// include path waypoints if available
 			if len(a.GetPath()) > 0 {
 				as.Path = make([]struct {

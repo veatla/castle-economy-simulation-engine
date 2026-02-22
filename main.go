@@ -35,7 +35,7 @@ func main() {
 		)
 	}
 
-	for range 100 {
+	for range 1 {
 		w.Agents = append(w.Agents, agents.CreateSimpleAgent(&w))
 	}
 

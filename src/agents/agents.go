@@ -23,6 +23,8 @@ type Agent struct {
 	baseSpeed     float64
 	rng           *rand.Rand
 	Wandering
+	// NoPath indicates A* failed to find a path to current target
+	NoPath bool
 	// Stuck detection
 	stuckCounter   int
 	lastX, lastZ   float64
@@ -119,7 +121,7 @@ func (agent *Agent) Tick(dt time.Duration, q worldQuery.WorldQuery) bool {
 	agent.detectStuck(q)
 
 	// Even if stuck/no path, decrease wait time so we can get a new target eventually
-	agent.Wandering.wait -= time.Duration(float64(dt) * 0.1)
+	// agent.Wandering.wait -= time.Duration(float64(dt) * 0.1)
 
 	return math.Abs(oldX-agent.X) > 1e-9 || math.Abs(oldZ-agent.Z) > 1e-9
 }
@@ -163,6 +165,7 @@ func (agent *Agent) SetWanderingTarget(q worldQuery.WorldQuery) Wandering {
 	// Compute A* path to the chosen target and store on agent
 	if path, found, _ := navgrid.AStarPath(agent.X, agent.Z, targetX, targetZ, q, obstacleOffset); found && len(path) > 0 {
 		agent.path = path
+		agent.NoPath = false
 		// path[0] is start; move toward path[1] first if exists
 		if len(path) > 1 {
 			agent.pathIndex = 1
@@ -174,6 +177,7 @@ func (agent *Agent) SetWanderingTarget(q worldQuery.WorldQuery) Wandering {
 		// Instead, leave path empty so MoveTorwardsWanderingTarget will do direct movement
 		// which is safer and will hit the "blocked" case and trigger A* replanning
 		agent.path = nil
+		agent.NoPath = true
 		agent.pathIndex = 0
 	}
 
@@ -202,6 +206,7 @@ func (agent *Agent) MoveTorwardsWanderingTarget(q worldQuery.WorldQuery) {
 		dz /= dist
 		agent.VX = dx * (agent.baseSpeed + agent.Wandering.speed)
 		agent.VZ = dz * (agent.baseSpeed + agent.Wandering.speed)
+		agent.NoPath = false
 		nextX := agent.X + agent.VX
 		nextZ := agent.Z + agent.VZ
 
@@ -229,6 +234,7 @@ func (agent *Agent) MoveTorwardsWanderingTarget(q worldQuery.WorldQuery) {
 	// No path: stand still
 	agent.VX = 0
 	agent.VZ = 0
+	agent.NoPath = true
 }
 
 // navigateWithAStar uses A* algorithm to find path around obstacles
@@ -242,7 +248,12 @@ func (agent *Agent) navigateWithAStar(q worldQuery.WorldQuery) {
 	)
 
 	if !found || len(path) == 0 {
-		// A* failed; just continue with current movement
+		// A* failed; stop movement and mark no-path state
+		agent.path = nil
+		agent.pathIndex = 0
+		agent.VX = 0
+		agent.VZ = 0
+		agent.NoPath = true
 		return
 	}
 
@@ -257,18 +268,33 @@ func (agent *Agent) navigateWithAStar(q worldQuery.WorldQuery) {
 
 // detectStuck checks if agent is stuck in one location
 func (agent *Agent) detectStuck(q worldQuery.WorldQuery) {
+	if agent.Wandering.wait >= 0 {
+
+		ddx := agent.Wandering.X - agent.X
+		ddz := agent.Wandering.Z - agent.Z
+		dist2 := ddx*ddx + ddz*ddz
+		const reachDist = 0.5
+
+		// log.Printf("Aaaaaaa %v %v", dist2, reachDist*reachDist)
+		if dist2 < reachDist*reachDist {
+			agent.stuckCounter = 0
+			agent.lastX = agent.X
+			agent.lastZ = agent.Z
+			return
+		}
+	}
+
 	dx := agent.X - agent.lastX
 	dz := agent.Z - agent.lastZ
 	distance := math.Sqrt(dx*dx + dz*dz)
 
-	const epsilon = 0.01
+	const epsilon = 0.001
 	const replanCooldown = 50 // only attempt replan once per 50 ticks
 
 	if distance < epsilon {
 		agent.stuckCounter++
 		if agent.stuckCounter > agent.stuckThreshold {
-			log.Printf("Agent %s is STUCK at position (%.2f, %.2f) for %d ticks",
-				agent.ID.String()[:8], agent.X, agent.Z, agent.stuckCounter)
+			log.Printf("Agent %s is STUCK at position (%.2f, %.2f) for %d ticks", agent.ID.String()[:8], agent.X, agent.Z, agent.stuckCounter)
 
 			// Attempt to recompute A* path only if cooldown has elapsed (expensive operation)
 			if agent.stuckCounter%replanCooldown == 0 {
